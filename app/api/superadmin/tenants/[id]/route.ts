@@ -2,7 +2,11 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
 import { NextResponse } from "next/server";
 import { s3, BUCKET } from "@/lib/s3";
-import { ListObjectsV2Command, DeleteObjectsCommand } from "@aws-sdk/client-s3";
+import {
+  ListObjectsV2Command,
+  DeleteObjectsCommand,
+  type ListObjectsV2CommandOutput,
+} from "@aws-sdk/client-s3";
 
 export async function DELETE(
   _req: Request,
@@ -25,7 +29,7 @@ export async function DELETE(
     try {
       let continuationToken: string | undefined = undefined;
       do {
-        const list = await s3.send(
+        const list: ListObjectsV2CommandOutput = await s3.send(
           new ListObjectsV2Command({
             Bucket: BUCKET,
             Prefix: `${id}/`,
@@ -34,8 +38,8 @@ export async function DELETE(
         );
 
         const keys = (list.Contents ?? [])
-          .map((obj) => ({ Key: obj.Key! }))
-          .filter((o) => o.Key);
+          .map((obj) => ({ Key: obj.Key ?? "" }))
+          .filter((o) => o.Key !== "");
 
         if (keys.length > 0) {
           await s3.send(
