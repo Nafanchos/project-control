@@ -1,8 +1,8 @@
 import { prisma } from "@/lib/prisma";
 import { requireTenant } from "@/lib/session";
 import { NextResponse } from "next/server";
-import { writeFile, mkdir } from "fs/promises";
-import path from "path";
+import { s3, BUCKET } from "@/lib/s3";
+import { PutObjectCommand } from "@aws-sdk/client-s3";
 
 export async function GET(
   _req: Request,
@@ -14,7 +14,6 @@ export async function GET(
   const { id } = await params;
 
   try {
-    // Проверяем, что задача доступна пользователю
     const where: Record<string, unknown> = { id, tenantId };
     if (session!.user.role === "USER") {
       where.assigneeId = session!.user.id;
@@ -46,7 +45,6 @@ export async function POST(
   const { id } = await params;
 
   try {
-    // Проверяем доступ к задаче
     const where: Record<string, unknown> = { id, tenantId };
     if (session!.user.role === "USER") {
       where.assigneeId = session!.user.id;
@@ -64,23 +62,29 @@ export async function POST(
     }
 
     const buffer = Buffer.from(await file.arrayBuffer());
-    const dir = path.join(process.cwd(), "uploads", tenantId, id);
-    await mkdir(dir, { recursive: true });
 
+    // Формируем ключ объекта в B2: tenantId/taskId/время_имя
     const safeName = file.name.replace(/[^\w.\-]+/g, "_");
     const storedName = `${Date.now()}_${safeName}`;
-    const filePath = path.join(dir, storedName);
+    const key = `${tenantId}/${id}/${storedName}`;
 
-    await writeFile(filePath, buffer);
+    // Загружаем в B2
+    await s3.send(
+      new PutObjectCommand({
+        Bucket: BUCKET,
+        Key: key,
+        Body: buffer,
+        ContentType: file.type || "application/octet-stream",
+      })
+    );
 
+    // Сохраняем в БД
     const doc = await prisma.document.create({
       data: {
         taskId: id,
         tenantId,
         fileName: file.name,
-        filePath: path
-          .join("uploads", tenantId, id, storedName)
-          .replace(/\\/g, "/"),
+        filePath: key,
         fileSize: file.size,
         mimeType: file.type || "application/octet-stream",
       },

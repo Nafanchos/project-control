@@ -1,8 +1,8 @@
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
 import { NextResponse } from "next/server";
-import { rm } from "fs/promises";
-import path from "path";
+import { s3, BUCKET } from "@/lib/s3";
+import { ListObjectsV2Command, DeleteObjectsCommand } from "@aws-sdk/client-s3";
 
 export async function DELETE(
   _req: Request,
@@ -21,15 +21,38 @@ export async function DELETE(
       return NextResponse.json({ error: "Не найдено" }, { status: 404 });
     }
 
-    // Удаляем папку с файлами компании (если есть)
-    const tenantUploads = path.join(process.cwd(), "uploads", id);
+    // Удаляем все файлы компании из B2
     try {
-      await rm(tenantUploads, { recursive: true, force: true });
-    } catch {
-      // файлов могло не быть
+      let continuationToken: string | undefined = undefined;
+      do {
+        const list = await s3.send(
+          new ListObjectsV2Command({
+            Bucket: BUCKET,
+            Prefix: `${id}/`,
+            ContinuationToken: continuationToken,
+          })
+        );
+
+        const keys = (list.Contents ?? [])
+          .map((obj) => ({ Key: obj.Key! }))
+          .filter((o) => o.Key);
+
+        if (keys.length > 0) {
+          await s3.send(
+            new DeleteObjectsCommand({
+              Bucket: BUCKET,
+              Delete: { Objects: keys },
+            })
+          );
+        }
+
+        continuationToken = list.NextContinuationToken;
+      } while (continuationToken);
+    } catch (err) {
+      console.warn("Не удалось удалить файлы из B2:", err);
     }
 
-    // Удаляем саму компанию — каскадно удалятся пользователи, заказчики, проекты, задачи, документы
+    // Удаляем саму компанию — каскадно всё связанное
     await prisma.tenant.delete({ where: { id } });
 
     return NextResponse.json({ ok: true });

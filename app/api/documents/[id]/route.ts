@@ -1,8 +1,8 @@
 import { prisma } from "@/lib/prisma";
 import { requireTenant } from "@/lib/session";
 import { NextResponse } from "next/server";
-import { readFile, unlink } from "fs/promises";
-import path from "path";
+import { s3, BUCKET } from "@/lib/s3";
+import { GetObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
 
 export async function GET(
   _req: Request,
@@ -21,7 +21,7 @@ export async function GET(
       return NextResponse.json({ error: "Не найден" }, { status: 404 });
     }
 
-    // USER может скачать только документы своих задач
+    // USER — только документы своих задач
     if (
       session!.user.role === "USER" &&
       doc.task.assigneeId !== session!.user.id
@@ -29,12 +29,23 @@ export async function GET(
       return NextResponse.json({ error: "Доступ запрещён" }, { status: 403 });
     }
 
-    const fullPath = path.join(process.cwd(), doc.filePath);
-    const buffer = await readFile(fullPath);
+    const result = await s3.send(
+      new GetObjectCommand({
+        Bucket: BUCKET,
+        Key: doc.filePath,
+      })
+    );
 
-    return new NextResponse(buffer, {
+    if (!result.Body) {
+      return NextResponse.json({ error: "Файл не найден" }, { status: 404 });
+    }
+
+    const bytes = await result.Body.transformToByteArray();
+
+    return new NextResponse(Buffer.from(bytes), {
       headers: {
         "Content-Type": doc.mimeType,
+        "Content-Length": String(bytes.byteLength),
         "Content-Disposition": `attachment; filename*=UTF-8''${encodeURIComponent(doc.fileName)}`,
       },
     });
@@ -61,7 +72,6 @@ export async function DELETE(
       return NextResponse.json({ error: "Не найден" }, { status: 404 });
     }
 
-    // USER может удалить только документы своих задач
     if (
       session!.user.role === "USER" &&
       doc.task.assigneeId !== session!.user.id
@@ -69,11 +79,16 @@ export async function DELETE(
       return NextResponse.json({ error: "Доступ запрещён" }, { status: 403 });
     }
 
-    const fullPath = path.join(process.cwd(), doc.filePath);
+    // Удаляем из B2 (если файла уже нет — просто игнорируем)
     try {
-      await unlink(fullPath);
-    } catch {
-      // файла может не быть
+      await s3.send(
+        new DeleteObjectCommand({
+          Bucket: BUCKET,
+          Key: doc.filePath,
+        })
+      );
+    } catch (err) {
+      console.warn("Не удалось удалить из B2:", err);
     }
 
     await prisma.document.delete({ where: { id } });
