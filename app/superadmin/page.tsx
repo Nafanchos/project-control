@@ -1,0 +1,266 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import Header from "@/app/components/Header";
+
+type Tenant = {
+  id: string;
+  name: string;
+  slug: string;
+  createdAt: string;
+  _count: { users: number; customers: number };
+};
+
+export default function SuperAdminPage() {
+  const [tenants, setTenants] = useState<Tenant[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+
+  const [name, setName] = useState("");
+  const [slug, setSlug] = useState("");
+  const [adminEmail, setAdminEmail] = useState("");
+  const [adminPassword, setAdminPassword] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Подтверждение удаления
+  const [deletingTenant, setDeletingTenant] = useState<Tenant | null>(null);
+  const [confirmText, setConfirmText] = useState("");
+  const [deleting, setDeleting] = useState(false);
+
+  async function loadTenants() {
+    setLoading(true);
+    const res = await fetch("/api/superadmin/tenants");
+    const data = await res.json();
+    setTenants(Array.isArray(data) ? data : []);
+    setLoading(false);
+  }
+
+  useEffect(() => {
+    loadTenants();
+  }, []);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setSaving(true);
+    setError(null);
+
+    const res = await fetch("/api/superadmin/tenants", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, slug, adminEmail, adminPassword }),
+    });
+
+    setSaving(false);
+
+    if (res.ok) {
+      setName("");
+      setSlug("");
+      setAdminEmail("");
+      setAdminPassword("");
+      setShowForm(false);
+      loadTenants();
+    } else {
+      const data = await res.json();
+      setError(
+        typeof data.error === "string"
+          ? data.error
+          : "Ошибка при создании компании"
+      );
+    }
+  }
+
+  async function handleDelete() {
+    if (!deletingTenant) return;
+    if (confirmText !== deletingTenant.name) {
+      alert("Название введено неверно");
+      return;
+    }
+
+    setDeleting(true);
+    const res = await fetch(`/api/superadmin/tenants/${deletingTenant.id}`, {
+      method: "DELETE",
+    });
+    setDeleting(false);
+
+    if (res.ok) {
+      setDeletingTenant(null);
+      setConfirmText("");
+      loadTenants();
+    } else {
+      const data = await res.json();
+      alert(typeof data.error === "string" ? data.error : "Ошибка");
+    }
+  }
+
+  return (
+    <>
+      <Header />
+      <div className="max-w-4xl mx-auto p-6">
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-2xl font-bold">Супер-админ: компании</h1>
+          <button
+            onClick={() => setShowForm((v) => !v)}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded"
+          >
+            {showForm ? "Отмена" : "+ Создать компанию"}
+          </button>
+        </div>
+
+        {showForm && (
+          <form
+            onSubmit={handleSubmit}
+            className="bg-gray-50 border rounded p-4 mb-6 space-y-3"
+          >
+            <h2 className="font-medium">Новая компания</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  Название компании *
+                </label>
+                <input
+                  required
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className="w-full border rounded px-3 py-2"
+                  placeholder="ООО Ромашка"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  Slug (латиница) *
+                </label>
+                <input
+                  required
+                  value={slug}
+                  onChange={(e) =>
+                    setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))
+                  }
+                  className="w-full border rounded px-3 py-2"
+                  placeholder="romashka"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  Email администратора *
+                </label>
+                <input
+                  required
+                  type="email"
+                  value={adminEmail}
+                  onChange={(e) => setAdminEmail(e.target.value)}
+                  className="w-full border rounded px-3 py-2"
+                  placeholder="admin@romashka.ru"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  Пароль администратора *
+                </label>
+                <input
+                  required
+                  type="text"
+                  value={adminPassword}
+                  onChange={(e) => setAdminPassword(e.target.value)}
+                  className="w-full border rounded px-3 py-2"
+                  placeholder="Минимум 6 символов"
+                />
+              </div>
+            </div>
+
+            {error && (
+              <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded px-3 py-2">
+                {error}
+              </p>
+            )}
+
+            <button
+              type="submit"
+              disabled={saving}
+              className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded disabled:opacity-50"
+            >
+              {saving ? "Создание..." : "Создать"}
+            </button>
+          </form>
+        )}
+
+        {loading ? (
+          <p className="text-gray-500">Загрузка...</p>
+        ) : tenants.length === 0 ? (
+          <p className="text-gray-500">
+            Пока нет компаний. Создайте первую.
+          </p>
+        ) : (
+          <ul className="divide-y border rounded">
+            {tenants.map((t) => (
+              <li
+                key={t.id}
+                className="p-4 flex justify-between items-start gap-4"
+              >
+                <div>
+                  <div className="font-medium">{t.name}</div>
+                  <div className="text-sm text-gray-500 mt-1">
+                    slug: <code>{t.slug}</code> · пользователей: {t._count.users} ·
+                    заказчиков: {t._count.customers}
+                  </div>
+                </div>
+                <button
+                  onClick={() => {
+                    setDeletingTenant(t);
+                    setConfirmText("");
+                  }}
+                  className="text-red-600 hover:underline text-sm shrink-0"
+                >
+                  Удалить
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      {/* Модалка подтверждения */}
+      {deletingTenant && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded shadow-lg max-w-md w-full p-6">
+            <h2 className="text-lg font-bold mb-2">Удалить компанию?</h2>
+            <p className="text-sm text-gray-600 mb-4">
+              Это действие <strong>необратимо</strong>. Удалятся все заказчики,
+              проекты, задачи, документы и пользователи компании{" "}
+              <strong>{deletingTenant.name}</strong>.
+            </p>
+            <p className="text-sm text-gray-600 mb-2">
+              Чтобы подтвердить, введите название компании:
+            </p>
+            <input
+              value={confirmText}
+              onChange={(e) => setConfirmText(e.target.value)}
+              className="w-full border rounded px-3 py-2 mb-4"
+              placeholder={deletingTenant.name}
+              autoFocus
+            />
+            <div className="flex gap-2 justify-end">
+              <button
+                onClick={() => {
+                  setDeletingTenant(null);
+                  setConfirmText("");
+                }}
+                disabled={deleting}
+                className="border px-4 py-2 rounded hover:bg-gray-100 disabled:opacity-50"
+              >
+                Отмена
+              </button>
+              <button
+                onClick={handleDelete}
+                disabled={deleting || confirmText !== deletingTenant.name}
+                className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded disabled:opacity-50"
+              >
+                {deleting ? "Удаление..." : "Удалить навсегда"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
