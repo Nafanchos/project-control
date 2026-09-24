@@ -68,17 +68,19 @@ export default function ProfilePage() {
   return (
     <>
       <Header />
-      <div className="max-w-2xl mx-auto p-6">
-        <h1 className="text-2xl font-bold mb-6">Профиль</h1>
+      <div className="max-w-2xl mx-auto p-4 md:p-6">
+        <h1 className="text-xl md:text-2xl font-bold mb-6">Профиль</h1>
 
         {/* Блок с текущими данными */}
         <div className="border rounded p-4 mb-6 bg-gray-50">
           <div className="text-sm text-gray-500 mb-1">Вы вошли как</div>
-          <div className="font-medium">
+          <div className="font-medium truncate">
             {user?.name?.trim() || user?.email || "..."}
           </div>
           {user?.name?.trim() && user?.email && (
-            <div className="text-sm text-gray-500 mt-0.5">{user.email}</div>
+            <div className="text-sm text-gray-500 mt-0.5 truncate">
+              {user.email}
+            </div>
           )}
           {user?.role === "SUPER_ADMIN" && (
             <span className="inline-block mt-2 text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded">
@@ -113,7 +115,7 @@ export default function ProfilePage() {
               type="password"
               value={currentPassword}
               onChange={(e) => setCurrentPassword(e.target.value)}
-              className="w-full border rounded px-3 py-2"
+              className="w-full border rounded px-3 py-2 text-sm md:text-base"
               autoComplete="current-password"
             />
           </div>
@@ -127,7 +129,7 @@ export default function ProfilePage() {
               type="password"
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
-              className="w-full border rounded px-3 py-2"
+              className="w-full border rounded px-3 py-2 text-sm md:text-base"
               autoComplete="new-password"
               placeholder="Минимум 6 символов"
             />
@@ -142,7 +144,7 @@ export default function ProfilePage() {
               type="password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
-              className="w-full border rounded px-3 py-2"
+              className="w-full border rounded px-3 py-2 text-sm md:text-base"
               autoComplete="new-password"
             />
           </div>
@@ -162,7 +164,7 @@ export default function ProfilePage() {
           <button
             type="submit"
             disabled={saving}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded disabled:opacity-50"
+            className="w-full md:w-auto bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded disabled:opacity-50"
           >
             {saving ? "Сохранение..." : "Сменить пароль"}
           </button>
