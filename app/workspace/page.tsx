@@ -27,6 +27,9 @@ function WorkspaceContent() {
   const [loading, setLoading] = useState(true);
   const [showPicker, setShowPicker] = useState(false);
 
+  // Мобильное переключение панелей
+  const [mobileTab, setMobileTab] = useState<"projects" | "tasks">("projects");
+
   // Форма создания заказчика
   const [showCustomerForm, setShowCustomerForm] = useState(false);
   const [newName, setNewName] = useState("");
@@ -43,7 +46,7 @@ function WorkspaceContent() {
   const [projectDescription, setProjectDescription] = useState("");
   const [savingProject, setSavingProject] = useState(false);
 
-  // Загрузка заказчиков компании
+  // Загрузка заказчиков компании + сессии
   useEffect(() => {
     fetch("/api/customers")
       .then((r) => r.json())
@@ -135,13 +138,13 @@ function WorkspaceContent() {
     const created: Customer = await res.json();
     setCustomers([created, ...customers]);
 
-    // Открываем как вкладку
     if (!openTabs.includes(created.id)) {
       setOpenTabs([...openTabs, created.id]);
     }
 
     resetCustomerForm();
     setShowPicker(false);
+    setMobileTab("projects");
     router.push(`/workspace?customer=${created.id}`);
   }
 
@@ -149,6 +152,7 @@ function WorkspaceContent() {
     if (!openTabs.includes(customerId)) {
       setOpenTabs([...openTabs, customerId]);
     }
+    setMobileTab("projects");
     router.push(`/workspace?customer=${customerId}`);
     setShowPicker(false);
     resetCustomerForm();
@@ -169,11 +173,13 @@ function WorkspaceContent() {
   }
 
   function selectTab(customerId: string) {
+    setMobileTab("projects");
     router.push(`/workspace?customer=${customerId}`);
   }
 
   function selectProject(projectId: string) {
     if (!activeCustomerId) return;
+    setMobileTab("tasks");
     router.push(`/workspace?customer=${activeCustomerId}&project=${projectId}`);
   }
 
@@ -202,6 +208,7 @@ function WorkspaceContent() {
       setProjectDescription("");
       setShowProjectForm(false);
       setProjects([created, ...projects]);
+      setMobileTab("tasks");
       selectProject(created.id);
     } else {
       alert("Ошибка при создании проекта");
@@ -219,6 +226,7 @@ function WorkspaceContent() {
     if (res.ok) {
       setProjects(projects.filter((p) => p.id !== projectId));
       if (activeProjectId === projectId) {
+        setMobileTab("projects");
         router.push(`/workspace?customer=${activeCustomerId}`);
       }
     } else {
@@ -234,7 +242,7 @@ function WorkspaceContent() {
 
   return (
     <div className="flex flex-col h-[calc(100vh-65px)]">
-      {/* Полоса вкладок */}
+      {/* Полоса вкладок заказчиков */}
       <div className="border-b bg-white flex items-center overflow-visible">
         {/* Кнопка «+» слева */}
         <div className="relative border-r">
@@ -250,7 +258,7 @@ function WorkspaceContent() {
           </button>
 
           {showPicker && (
-            <div className="absolute top-full left-0 mt-1 bg-white border rounded shadow-lg z-20 min-w-[300px]">
+            <div className="absolute top-full left-0 mt-1 bg-white border rounded shadow-lg z-20 min-w-[280px] max-w-[90vw]">
               {!showCustomerForm ? (
                 <>
                   {availableCustomers.length === 0 ? (
@@ -369,7 +377,7 @@ function WorkspaceContent() {
                     : "bg-white hover:bg-gray-50"
                 }`}
               >
-                <span className="max-w-[200px] truncate">
+                <span className="max-w-[140px] md:max-w-[200px] truncate">
                   {getCustomerName(id)}
                 </span>
                 <button
@@ -385,17 +393,42 @@ function WorkspaceContent() {
         </div>
       </div>
 
+      {/* Мобильный переключатель «Проекты / Задачи» */}
+      <div className="md:hidden border-b bg-white flex">
+        <button
+          onClick={() => setMobileTab("projects")}
+          className={`flex-1 py-2.5 text-sm font-medium border-b-2 ${
+            mobileTab === "projects"
+              ? "border-blue-600 text-blue-700"
+              : "border-transparent text-gray-500"
+          }`}
+        >
+          Проекты
+        </button>
+        <button
+          onClick={() => setMobileTab("tasks")}
+          className={`flex-1 py-2.5 text-sm font-medium border-b-2 ${
+            mobileTab === "tasks"
+              ? "border-blue-600 text-blue-700"
+              : "border-transparent text-gray-500"
+          }`}
+        >
+          Задачи
+        </button>
+      </div>
+
       {/* Основная область */}
       <div className="flex flex-1 overflow-hidden">
         {/* Левая панель: проекты */}
         <aside
-          className="border-r bg-gray-50 overflow-y-auto shrink-0 flex flex-col"
-          style={{ width: "12.5%" }}
+          className={`border-r bg-gray-50 overflow-y-auto shrink-0 flex-col md:flex md:w-[12.5%] ${
+            mobileTab === "projects" ? "flex w-full" : "hidden"
+          }`}
         >
           {isAdmin && (
             <div className="p-3 border-b">
               <button
-               onClick={() => setShowProjectForm((v) => !v)}
+                onClick={() => setShowProjectForm((v) => !v)}
                 disabled={!activeCustomerId}
                 className="w-full text-xs bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 text-white px-2 py-1.5 rounded"
               >
@@ -414,19 +447,19 @@ function WorkspaceContent() {
                 value={projectName}
                 onChange={(e) => setProjectName(e.target.value)}
                 placeholder="Название"
-                className="w-full border rounded px-2 py-1 text-xs"
+                className="w-full border rounded px-2 py-1 text-sm md:text-xs"
               />
               <textarea
                 value={projectDescription}
                 onChange={(e) => setProjectDescription(e.target.value)}
                 placeholder="Описание"
                 rows={2}
-                className="w-full border rounded px-2 py-1 text-xs"
+                className="w-full border rounded px-2 py-1 text-sm md:text-xs"
               />
               <button
                 type="submit"
                 disabled={savingProject}
-                className="w-full text-xs bg-green-600 hover:bg-green-700 text-white px-2 py-1 rounded disabled:opacity-50"
+                className="w-full text-sm md:text-xs bg-green-600 hover:bg-green-700 text-white px-2 py-1.5 md:py-1 rounded disabled:opacity-50"
               >
                 {savingProject ? "..." : "Создать"}
               </button>
@@ -435,13 +468,13 @@ function WorkspaceContent() {
 
           <div className="flex-1 overflow-y-auto">
             {!activeCustomerId ? (
-              <p className="p-3 text-xs text-gray-400">
+              <p className="p-3 text-sm md:text-xs text-gray-400">
                 Выберите заказчика
               </p>
             ) : projectsLoading ? (
-              <p className="p-3 text-xs text-gray-400">Загрузка...</p>
+              <p className="p-3 text-sm md:text-xs text-gray-400">Загрузка...</p>
             ) : projects.length === 0 ? (
-              <p className="p-3 text-xs text-gray-400">Нет проектов</p>
+              <p className="p-3 text-sm md:text-xs text-gray-400">Нет проектов</p>
             ) : (
               <ul>
                 {projects.map((p) => {
@@ -450,7 +483,7 @@ function WorkspaceContent() {
                     <li key={p.id}>
                       <div
                         onClick={() => selectProject(p.id)}
-                        className={`group px-3 py-2 cursor-pointer border-b text-xs flex items-start gap-1 ${
+                        className={`group px-3 py-3 md:py-2 cursor-pointer border-b text-sm md:text-xs flex items-start gap-2 ${
                           isActive
                             ? "bg-blue-100 text-blue-800 font-medium"
                             : "hover:bg-white"
@@ -459,7 +492,7 @@ function WorkspaceContent() {
                         <div className="flex-1 min-w-0">
                           <div className="truncate">{p.name}</div>
                           {p.description && (
-                            <div className="text-[10px] text-gray-400 truncate mt-0.5">
+                            <div className="text-xs md:text-[10px] text-gray-400 truncate mt-0.5">
                               {p.description}
                             </div>
                           )}
@@ -467,7 +500,8 @@ function WorkspaceContent() {
                         {isAdmin && (
                           <button
                             onClick={(e) => deleteProject(p.id, e)}
-                            className="opacity-0 group-hover:opacity-100 ..."
+                            className="md:opacity-0 md:group-hover:opacity-100 text-gray-400 hover:text-red-600 text-xs md:text-[10px] shrink-0"
+                            title="Удалить проект"
                           >
                             ✕
                           </button>
@@ -482,7 +516,13 @@ function WorkspaceContent() {
         </aside>
 
         {/* Правая панель: задачи */}
-        <TasksPanel projectId={activeProjectId} />
+        <div
+          className={`flex-1 flex-col overflow-hidden md:flex ${
+            mobileTab === "tasks" ? "flex" : "hidden"
+          }`}
+        >
+          <TasksPanel projectId={activeProjectId} />
+        </div>
       </div>
     </div>
   );
