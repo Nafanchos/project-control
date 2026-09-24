@@ -46,40 +46,56 @@ function WorkspaceContent() {
   const [projectDescription, setProjectDescription] = useState("");
   const [savingProject, setSavingProject] = useState(false);
 
-  // Загрузка заказчиков компании + сессии
-  useEffect(() => {
-    fetch("/api/customers")
-      .then((r) => r.json())
-      .then((data) => setCustomers(Array.isArray(data) ? data : []))
-      .catch(() => setCustomers([]));
+// Загрузка заказчиков, сессии и инициализация вкладок
+useEffect(() => {
+  Promise.all([
+    fetch("/api/customers").then((r) => r.json()),
+    fetch("/api/auth/session").then((r) => r.json()),
+  ])
+    .then(([customersData, sessionData]) => {
+      const customersList: Customer[] = Array.isArray(customersData)
+        ? customersData
+        : [];
+      setCustomers(customersList);
+      setRole(sessionData?.user?.role ?? null);
 
-    fetch("/api/auth/session")
-      .then((r) => r.json())
-      .then((s) => setRole(s?.user?.role ?? null))
-      .catch(() => setRole(null));
-  }, []);
+      // Читаем вкладки из localStorage и фильтруем по существующим заказчикам
+      const validIds = new Set(customersList.map((c) => c.id));
 
-  // Инициализация вкладок из localStorage
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      const tabs: string[] = stored ? JSON.parse(stored) : [];
-      setOpenTabs(tabs);
+      try {
+        const stored = localStorage.getItem(STORAGE_KEY);
+        const tabs: string[] = stored ? JSON.parse(stored) : [];
+        let filtered = tabs.filter((id) => validIds.has(id));
 
-      if (activeCustomerId && !tabs.includes(activeCustomerId)) {
-        const next = [...tabs, activeCustomerId];
-        setOpenTabs(next);
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+        // Если активный заказчик существует, но его нет во вкладках — добавляем
+        if (
+          activeCustomerId &&
+          validIds.has(activeCustomerId) &&
+          !filtered.includes(activeCustomerId)
+        ) {
+          filtered = [...filtered, activeCustomerId];
+        }
+
+        setOpenTabs(filtered);
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(filtered));
+
+        // Если активного заказчика нет, а вкладки есть — открываем первую
+        if (!activeCustomerId && filtered.length > 0) {
+          router.replace(`/workspace?customer=${filtered[0]}`);
+        }
+      } catch {
+        //
       }
-      if (!activeCustomerId && tabs.length > 0) {
-        router.replace(`/workspace?customer=${tabs[0]}`);
-      }
-    } catch {
-      //
-    }
-    setLoading(false);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+
+      setLoading(false);
+    })
+    .catch(() => {
+      setCustomers([]);
+      setRole(null);
+      setLoading(false);
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, []);
 
   useEffect(() => {
     if (loading) return;
@@ -171,6 +187,39 @@ function WorkspaceContent() {
       }
     }
   }
+
+  async function deleteCustomer(customerId: string, e: React.MouseEvent) {
+  e.stopPropagation();
+
+  const customerName = getCustomerName(customerId);
+  const confirmed = confirm(
+    `Удалить заказчика «${customerName}»?\n\nВсе его проекты, задачи и документы будут удалены безвозвратно.`
+  );
+  if (!confirmed) return;
+
+  const res = await fetch(`/api/customers/${customerId}`, {
+    method: "DELETE",
+  });
+
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    alert(typeof data.error === "string" ? data.error : "Ошибка при удалении");
+    return;
+  }
+
+  // Убираем вкладку и закрываем, если она была активной
+  const next = openTabs.filter((id) => id !== customerId);
+  setOpenTabs(next);
+  setCustomers(customers.filter((c) => c.id !== customerId));
+
+  if (activeCustomerId === customerId) {
+    if (next.length > 0) {
+      router.push(`/workspace?customer=${next[next.length - 1]}`);
+    } else {
+      router.push("/workspace");
+    }
+  }
+}
 
   function selectTab(customerId: string) {
     setMobileTab("projects");
@@ -270,13 +319,26 @@ function WorkspaceContent() {
                   ) : (
                     <div className="max-h-64 overflow-y-auto">
                       {availableCustomers.map((c) => (
-                        <button
+                        <div
                           key={c.id}
-                          onClick={() => openTab(c.id)}
-                          className="block w-full text-left px-3 py-2 text-sm hover:bg-gray-50"
+                          className="flex items-center justify-between gap-2 px-3 py-2 hover:bg-gray-50 group"
                         >
-                          {c.name}
-                        </button>
+                          <button
+                            onClick={() => openTab(c.id)}
+                            className="flex-1 text-left text-sm truncate"
+                          >
+                            {c.name}
+                          </button>
+                          {isAdmin && (
+                            <button
+                              onClick={(e) => deleteCustomer(c.id, e)}
+                              className="text-xs text-gray-400 hover:text-red-600 shrink-0"
+                              title="Удалить заказчика"
+                            >
+                              ✕
+                            </button>
+                          )}
+                        </div>
                       ))}
                     </div>
                   )}
@@ -365,31 +427,33 @@ function WorkspaceContent() {
               Нет открытых заказчиков — нажмите «+»
             </span>
           )}
-          {openTabs.map((id) => {
-            const isActive = id === activeCustomerId;
-            return (
-              <div
-                key={id}
-                onClick={() => selectTab(id)}
-                className={`flex items-center gap-2 px-3 py-2 text-sm cursor-pointer border-r whitespace-nowrap ${
-                  isActive
-                    ? "bg-blue-50 text-blue-700 border-b-2 border-b-blue-600"
-                    : "bg-white hover:bg-gray-50"
-                }`}
-              >
-                <span className="max-w-[140px] md:max-w-[200px] truncate">
-                  {getCustomerName(id)}
-                </span>
-                <button
-                  onClick={(e) => closeTab(id, e)}
-                  className="text-gray-400 hover:text-gray-700 text-xs"
-                  title="Закрыть вкладку"
+          {openTabs
+            .filter((id) => customers.some((c) => c.id === id))
+            .map((id) => {
+              const isActive = id === activeCustomerId;
+              return (
+                <div
+                  key={id}
+                  onClick={() => selectTab(id)}
+                  className={`flex items-center gap-2 px-3 py-2 text-sm cursor-pointer border-r whitespace-nowrap ${
+                    isActive
+                      ? "bg-blue-50 text-blue-700 border-b-2 border-b-blue-600"
+                      : "bg-white hover:bg-gray-50"
+                  }`}
                 >
-                  ✕
-                </button>
-              </div>
-            );
-          })}
+                  <span className="max-w-[140px] md:max-w-[200px] truncate">
+                    {getCustomerName(id)}
+                  </span>
+                  <button
+                    onClick={(e) => closeTab(id, e)}
+                    className="text-gray-400 hover:text-gray-700 text-xs"
+                    title="Закрыть вкладку"
+                  >
+                    ✕
+                  </button>
+                </div>
+              );
+            })}
         </div>
       </div>
 
