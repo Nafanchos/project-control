@@ -23,7 +23,6 @@ export default function SuperAdminPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Подтверждение удаления
   const [deletingTenant, setDeletingTenant] = useState<Tenant | null>(null);
   const [confirmText, setConfirmText] = useState("");
   const [deleting, setDeleting] = useState(false);
@@ -96,12 +95,14 @@ export default function SuperAdminPage() {
   return (
     <>
       <Header />
-      <div className="max-w-4xl mx-auto p-6">
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl font-bold">Супер-админ: компании</h1>
+      <div className="max-w-4xl mx-auto p-4 md:p-6">
+        <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-3 mb-6">
+          <h1 className="text-xl md:text-2xl font-bold">
+            Супер-админ: компании
+          </h1>
           <button
             onClick={() => setShowForm((v) => !v)}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded"
+            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm md:text-base"
           >
             {showForm ? "Отмена" : "+ Создать компанию"}
           </button>
@@ -122,7 +123,7 @@ export default function SuperAdminPage() {
                   required
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="w-full border rounded px-3 py-2"
+                  className="w-full border rounded px-3 py-2 text-sm md:text-base"
                   placeholder="ООО Ромашка"
                 />
               </div>
@@ -134,9 +135,11 @@ export default function SuperAdminPage() {
                   required
                   value={slug}
                   onChange={(e) =>
-                    setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))
+                    setSlug(
+                      e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "")
+                    )
                   }
-                  className="w-full border rounded px-3 py-2"
+                  className="w-full border rounded px-3 py-2 text-sm md:text-base"
                   placeholder="romashka"
                 />
               </div>
@@ -149,7 +152,7 @@ export default function SuperAdminPage() {
                   type="email"
                   value={adminEmail}
                   onChange={(e) => setAdminEmail(e.target.value)}
-                  className="w-full border rounded px-3 py-2"
+                  className="w-full border rounded px-3 py-2 text-sm md:text-base"
                   placeholder="admin@romashka.ru"
                 />
               </div>
@@ -162,7 +165,7 @@ export default function SuperAdminPage() {
                   type="text"
                   value={adminPassword}
                   onChange={(e) => setAdminPassword(e.target.value)}
-                  className="w-full border rounded px-3 py-2"
+                  className="w-full border rounded px-3 py-2 text-sm md:text-base"
                   placeholder="Минимум 6 символов"
                 />
               </div>
@@ -177,7 +180,7 @@ export default function SuperAdminPage() {
             <button
               type="submit"
               disabled={saving}
-              className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded disabled:opacity-50"
+              className="w-full md:w-auto bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded disabled:opacity-50"
             >
               {saving ? "Создание..." : "Создать"}
             </button>
@@ -195,13 +198,16 @@ export default function SuperAdminPage() {
             {tenants.map((t) => (
               <li
                 key={t.id}
-                className="p-4 flex justify-between items-start gap-4"
+                className="flex flex-col md:flex-row md:justify-between md:items-start gap-3 p-4"
               >
-                <div>
-                  <div className="font-medium">{t.name}</div>
+                <div className="min-w-0">
+                  <div className="font-medium truncate">{t.name}</div>
                   <div className="text-sm text-gray-500 mt-1">
-                    slug: <code>{t.slug}</code> · пользователей: {t._count.users} ·
-                    заказчиков: {t._count.customers}
+                    slug: <code>{t.slug}</code>
+                  </div>
+                  <div className="text-sm text-gray-500 mt-0.5">
+                    пользователей: {t._count.users} · заказчиков:{" "}
+                    {t._count.customers}
                   </div>
                 </div>
                 <button
@@ -209,7 +215,7 @@ export default function SuperAdminPage() {
                     setDeletingTenant(t);
                     setConfirmText("");
                   }}
-                  className="text-red-600 hover:underline text-sm shrink-0"
+                  className="text-red-600 hover:underline text-sm self-start md:self-center shrink-0"
                 >
                   Удалить
                 </button>
@@ -219,10 +225,10 @@ export default function SuperAdminPage() {
         )}
       </div>
 
-      {/* Модалка подтверждения */}
+      {/* Модалка подтверждения удаления */}
       {deletingTenant && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded shadow-lg max-w-md w-full p-6">
+          <div className="bg-white rounded shadow-lg max-w-md w-full p-5 md:p-6 max-h-[90vh] overflow-y-auto">
             <h2 className="text-lg font-bold mb-2">Удалить компанию?</h2>
             <p className="text-sm text-gray-600 mb-4">
               Это действие <strong>необратимо</strong>. Удалятся все заказчики,
@@ -239,21 +245,21 @@ export default function SuperAdminPage() {
               placeholder={deletingTenant.name}
               autoFocus
             />
-            <div className="flex gap-2 justify-end">
+            <div className="flex flex-col-reverse md:flex-row md:justify-end gap-2">
               <button
                 onClick={() => {
                   setDeletingTenant(null);
                   setConfirmText("");
                 }}
                 disabled={deleting}
-                className="border px-4 py-2 rounded hover:bg-gray-100 disabled:opacity-50"
+                className="w-full md:w-auto border px-4 py-2 rounded hover:bg-gray-100 disabled:opacity-50"
               >
                 Отмена
               </button>
               <button
                 onClick={handleDelete}
                 disabled={deleting || confirmText !== deletingTenant.name}
-                className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded disabled:opacity-50"
+                className="w-full md:w-auto bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded disabled:opacity-50"
               >
                 {deleting ? "Удаление..." : "Удалить навсегда"}
               </button>
