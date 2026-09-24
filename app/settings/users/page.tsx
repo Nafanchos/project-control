@@ -37,7 +37,6 @@ export default function UsersPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Сброс пароля
   const [resetting, setResetting] = useState<User | null>(null);
   const [tempPassword, setTempPassword] = useState("");
   const [resettingSave, setResettingSave] = useState(false);
@@ -146,12 +145,14 @@ export default function UsersPage() {
   return (
     <>
       <Header />
-      <div className="max-w-4xl mx-auto p-6">
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl font-bold">Сотрудники компании</h1>
+      <div className="max-w-4xl mx-auto p-4 md:p-6">
+        <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-3 mb-6">
+          <h1 className="text-xl md:text-2xl font-bold">
+            Сотрудники компании
+          </h1>
           <button
             onClick={() => setShowForm((v) => !v)}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded"
+            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm md:text-base"
           >
             {showForm ? "Отмена" : "+ Добавить сотрудника"}
           </button>
@@ -165,13 +166,11 @@ export default function UsersPage() {
             <h2 className="font-medium">Новый сотрудник</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div className="md:col-span-2">
-                <label className="block text-sm font-medium mb-1">
-                  ФИО
-                </label>
+                <label className="block text-sm font-medium mb-1">ФИО</label>
                 <input
                   value={userName}
                   onChange={(e) => setUserName(e.target.value)}
-                  className="w-full border rounded px-3 py-2"
+                  className="w-full border rounded px-3 py-2 text-sm md:text-base"
                   placeholder="Иванов Иван Иванович"
                 />
               </div>
@@ -184,7 +183,7 @@ export default function UsersPage() {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full border rounded px-3 py-2"
+                  className="w-full border rounded px-3 py-2 text-sm md:text-base"
                   placeholder="user@example.com"
                 />
               </div>
@@ -197,7 +196,7 @@ export default function UsersPage() {
                   type="text"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full border rounded px-3 py-2"
+                  className="w-full border rounded px-3 py-2 text-sm md:text-base"
                   placeholder="Минимум 6 символов"
                 />
               </div>
@@ -206,7 +205,7 @@ export default function UsersPage() {
                 <select
                   value={role}
                   onChange={(e) => setRole(e.target.value as "ADMIN" | "USER")}
-                  className="w-full border rounded px-3 py-2"
+                  className="w-full border rounded px-3 py-2 text-sm md:text-base"
                 >
                   <option value="USER">Пользователь</option>
                   <option value="ADMIN">Администратор</option>
@@ -237,14 +236,19 @@ export default function UsersPage() {
         ) : (
           <ul className="divide-y border rounded">
             {users.map((u) => (
-              <li key={u.id} className="flex items-center justify-between p-4">
-                <div>
-                  <div className="font-medium">
+              <li
+                key={u.id}
+                className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 p-4"
+              >
+                <div className="min-w-0">
+                  <div className="font-medium truncate">
                     {u.name?.trim() || u.email}
                   </div>
-                  <div className="text-sm text-gray-500 mt-1 flex items-center gap-2">
+                  <div className="text-sm text-gray-500 mt-1 flex flex-wrap items-center gap-2">
                     {u.name?.trim() && (
-                      <span className="text-xs text-gray-400">{u.email}</span>
+                      <span className="text-xs text-gray-400 truncate">
+                        {u.email}
+                      </span>
                     )}
                     <span
                       className={`inline-block px-2 py-0.5 rounded text-xs ${ROLE_COLORS[u.role]}`}
@@ -261,17 +265,17 @@ export default function UsersPage() {
                     )}
                   </div>
                 </div>
-                <div className="flex items-center gap-4">
+                <div className="flex flex-row md:flex-row gap-4 md:gap-4 text-sm">
                   <button
                     onClick={() => openReset(u)}
-                    className="text-blue-600 hover:underline text-sm"
+                    className="text-blue-600 hover:underline"
                   >
                     Сбросить пароль
                   </button>
                   {u.id !== currentUserId && (
                     <button
                       onClick={() => handleDelete(u.id)}
-                      className="text-red-600 hover:underline text-sm"
+                      className="text-red-600 hover:underline"
                     >
                       Удалить
                     </button>
