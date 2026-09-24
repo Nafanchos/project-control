@@ -108,7 +108,6 @@ export default function TasksPanel({ projectId }: { projectId: string | null }) 
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Загружаем сессию (роль + id) один раз
   useEffect(() => {
     fetch("/api/auth/session")
       .then((r) => r.json())
@@ -118,7 +117,6 @@ export default function TasksPanel({ projectId }: { projectId: string | null }) 
       });
   }, []);
 
-  // Загружаем список сотрудников (только для ADMIN)
   useEffect(() => {
     if (role === "ADMIN" || role === "SUPER_ADMIN") {
       fetch("/api/tenant/users")
@@ -182,7 +180,6 @@ export default function TasksPanel({ projectId }: { projectId: string | null }) 
     if (!projectId) return;
     setSaving(true);
 
-    // Для USER отправляем только разрешённые поля
     const payload = isAdmin
       ? {
           title: form.title,
@@ -266,7 +263,7 @@ export default function TasksPanel({ projectId }: { projectId: string | null }) 
 
   if (!projectId) {
     return (
-      <div className="flex-1 flex items-center justify-center text-gray-400">
+      <div className="flex-1 flex items-center justify-center text-gray-400 p-6 text-center">
         Выберите проект в левой панели
       </div>
     );
@@ -275,7 +272,7 @@ export default function TasksPanel({ projectId }: { projectId: string | null }) 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
       {/* Заголовок */}
-      <div className="border-b px-6 py-3 bg-white">
+      <div className="border-b px-4 md:px-6 py-3 bg-white">
         <h2 className="font-medium text-gray-800 mb-2">Задачи проекта</h2>
         {isAdmin && (
           <button
@@ -287,7 +284,7 @@ export default function TasksPanel({ projectId }: { projectId: string | null }) 
         )}
       </div>
 
-      <div className="flex-1 overflow-y-auto p-6">
+      <div className="flex-1 overflow-y-auto p-4 md:p-6">
         {showForm && (
           <form
             onSubmit={handleSubmit}
@@ -313,9 +310,7 @@ export default function TasksPanel({ projectId }: { projectId: string | null }) 
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-1">
-                    Тип *
-                  </label>
+                  <label className="block text-sm font-medium mb-1">Тип *</label>
                   <select
                     value={form.type}
                     onChange={(e) =>
@@ -424,7 +419,6 @@ export default function TasksPanel({ projectId }: { projectId: string | null }) 
                 </div>
               </div>
             ) : (
-              // USER может менять только факт-даты и статус
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div className="md:col-span-2 text-sm text-gray-700 bg-gray-100 rounded px-3 py-2">
                   <div className="font-medium">{form.title}</div>
@@ -517,10 +511,11 @@ export default function TasksPanel({ projectId }: { projectId: string | null }) 
               : "Пока нет задач. Добавьте первую."}
           </p>
         ) : (
-          <div className="space-y-2">
+          <div className="space-y-3 md:space-y-2">
             {tasks.map((t) => (
               <div key={t.id} className="border rounded bg-white">
-                <div className="grid grid-cols-12 gap-2 items-center p-3 text-sm">
+                {/* ========== Десктопная версия ========== */}
+                <div className="hidden md:grid grid-cols-12 gap-2 items-center p-3 text-sm">
                   <div className="col-span-3 font-medium">{t.title}</div>
                   <div className="col-span-1 text-gray-600">
                     {TYPE_LABELS[t.type]}
@@ -573,9 +568,67 @@ export default function TasksPanel({ projectId }: { projectId: string | null }) 
                   </div>
                 </div>
 
+                {/* ========== Мобильная версия ========== */}
+                <div className="md:hidden p-3 space-y-3">
+                  <div className="font-medium text-sm">{t.title}</div>
+
+                  <div className="flex flex-wrap gap-1.5 text-xs">
+                    <span className="px-2 py-0.5 rounded bg-gray-100 text-gray-700">
+                      {TYPE_LABELS[t.type]}
+                    </span>
+                    <span className="px-2 py-0.5 rounded bg-gray-100 text-gray-700">
+                      {t.assignee ? displayName(t.assignee) : "—"}
+                    </span>
+                    <span
+                      className={`px-2 py-0.5 rounded ${STATUS_COLORS[t.status]}`}
+                    >
+                      {STATUS_LABELS[t.status]}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 text-xs text-gray-600">
+                    <div>
+                      <div className="text-gray-400 mb-0.5">План</div>
+                      <div>{fmtDate(t.planStart)}</div>
+                      <div>{fmtDate(t.planEnd)}</div>
+                    </div>
+                    <div>
+                      <div className="text-gray-400 mb-0.5">Факт</div>
+                      <div>{fmtDate(t.factStart)}</div>
+                      <div>{fmtDate(t.factEnd)}</div>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap gap-x-4 gap-y-2 pt-1 text-xs border-t">
+                    <button
+                      onClick={() =>
+                        setOpenDocsFor(openDocsFor === t.id ? null : t.id)
+                      }
+                      className="text-gray-700 hover:underline py-1"
+                    >
+                      📎 Документы ({t.documents.length})
+                    </button>
+                    <button
+                      onClick={() => openEdit(t)}
+                      className="text-blue-600 hover:underline py-1"
+                    >
+                      {isUser ? "Обновить прогресс" : "Изменить"}
+                    </button>
+                    {isAdmin && (
+                      <button
+                        onClick={() => handleDelete(t.id)}
+                        className="text-red-600 hover:underline py-1"
+                      >
+                        Удалить
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Секция документов (одинаковая для мобильного и десктопа) */}
                 {openDocsFor === t.id && (
                   <div className="border-t bg-gray-50 p-3">
-                    <div className="flex items-center gap-2 mb-3">
+                    <div className="flex items-center gap-2 mb-3 flex-wrap">
                       <input
                         ref={fileInputRef}
                         type="file"
@@ -605,16 +658,18 @@ export default function TasksPanel({ projectId }: { projectId: string | null }) 
                         {t.documents.map((d) => (
                           <li
                             key={d.id}
-                            className="flex items-center justify-between px-3 py-2 text-xs"
+                            className="flex items-center justify-between gap-2 px-3 py-2 text-xs"
                           >
                             <a
                               href={`/api/documents/${d.id}`}
-                              className="text-blue-600 hover:underline truncate"
+                              className="text-blue-600 hover:underline truncate flex-1 min-w-0"
                             >
                               {d.fileName}
                             </a>
-                            <div className="flex items-center gap-3 text-gray-500">
-                              <span>{fmtSize(d.fileSize)}</span>
+                            <div className="flex items-center gap-3 text-gray-500 shrink-0">
+                              <span className="hidden sm:inline">
+                                {fmtSize(d.fileSize)}
+                              </span>
                               <button
                                 onClick={() => handleDeleteDoc(d.id)}
                                 className="text-red-600 hover:underline"
