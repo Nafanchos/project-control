@@ -15,8 +15,10 @@ export const authConfig = {
       const isSuperAdminPage = pathname.startsWith("/superadmin");
       const isProfilePage = pathname === "/settings/profile";
       const isAuthApi = pathname.startsWith("/api/auth");
+      const isHealthPage = pathname === "/health" || pathname === "/api/health";
 
       if (isAuthApi) return true;
+      if (isHealthPage) return true;
 
       if (isLoginPage) {
         if (isLoggedIn) {
